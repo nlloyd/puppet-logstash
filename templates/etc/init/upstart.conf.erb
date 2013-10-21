@@ -1,0 +1,50 @@
+<%-
+if @instance_name != ''
+  @proc_name = 'logstash-' + @instance_name
+  @desc_name = @name
+else
+  @proc_name = 'logstash'
+  @desc_name = ''
+end
+-%>
+description     "logstash <%= @instance_name %> instance"
+
+start on virtual-filesystems
+stop on runlevel [06]
+
+respawn
+respawn limit 5 30
+limit nofile 2048 2048
+
+chdir /opt/logstash
+setuid <%= scope.lookupvar('logstash::logstash_user') %>
+setgid <%= scope.lookupvar('logstash::logstash_group') %>
+console log
+
+script
+    NAME=<%=@proc_name%>
+
+    # Directory where the logstash all in one jar lives
+    LS_HOME=<%= scope.lookupvar('logstash::installpath') %>
+
+    # Additional Java OPTS
+    LS_JAVA_OPTS="-Djava.io.tmpdir=$LS_HOME/tmp -Xmx256m"
+
+    # logstash log directory
+    LOG_DIR=/var/log/logstash
+
+    # logstash configuration directory
+    CONF_DIR=<%= @configdir %>
+
+    # logstash log file
+    LOG_FILE=$LOG_DIR/$NAME.log
+
+    # Filter threads
+    FILTER_THREADS=1
+
+    # Define other required variables
+    DAEMON=$LS_HOME/logstash.jar
+    DAEMON_OPTS="agent -f ${CONF_DIR} --log ${LOG_FILE} -w ${FILTER_THREADS}"
+
+    exec java $LS_JAVA_OPTS -jar $DAEMON $DAEMON_OPTS
+end script

@@ -36,73 +36,89 @@ define logstash::servicefile (
     # If we are managing the init script
     if $logstash::status != 'unmanaged' {
 
-      if $logstash::initfiles {
-        $init = $logstash::initfiles
-        $initfile = $init[$name]
-      }
+      # if our init script is actually an upstart script
+      if $logstash::upstart {
 
-      if $logstash::defaultsfiles {
-        $def = $logstash::defaultsfiles
-        $def_file = $def[$name]
-      }
-
-      $configdir = "${logstash::configdir}/${name}/config"
-
-      # Do we get a custom init script?
-      if $initfile != undef {
-
-        # Set initscript to undef
-        $initscript = undef
-      }
-
-      # If we are using a custom provider, thus not using the package and not supplying a custom init script use our own init script
-      if $initfile == undef {
-
-        $instance_name = $name
-        ## Get the init file we provide
-        case $::operatingsystem {
-          'RedHat', 'CentOS', 'Fedora', 'Scientific', 'Amazon': {
-            $initscript = template("${module_name}/etc/init.d/logstash.init.RedHat.erb")
-          }
-          'Debian', 'Ubuntu': {
-            $initscript = template("${module_name}/etc/init.d/logstash.init.Debian.erb")
-          }
-          default: {
-            fail("\"${module_name}\" provides no default init file
-                  for \"${::operatingsystem}\"")
-          }
-
+        file { "/etc/init/logastash-${name}.conf":
+          ensure  => $logstash::ensure,
+          content => template("${module_name}/etc/init/upstart.conf.erb"),
+          source  => $initfile,
+          owner   => 'root',
+          group   => 'root',
+          mode    => '0755',
+          before  => Service[ "logstash-${name}" ]
         }
-      }
 
-      # If no custom defaults file is provided, lets use our default one
-      if $def_file {
-        $defaults_file = $def_file
       } else {
-        $defaults_file = "puppet:///modules/${module_name}/etc/sysconfig/logstash.defaults"
-      }
 
-      # Write service file
-      file { "/etc/init.d/logstash-${name}":
-        ensure  => $logstash::ensure,
-        content => $initscript,
-        source  => $initfile,
-        owner   => 'root',
-        group   => 'root',
-        mode    => '0755',
-        before  => Service[ "logstash-${name}" ]
-      }
+        if $logstash::initfiles {
+          $init = $logstash::initfiles
+          $initfile = $init[$name]
+        }
 
-      if $defaults_file {
-        # Write defaults file if we have one
-        file { "${logstash::params::defaults_location}/logstash-${name}":
-          ensure => $logstash::ensure,
-          source => $defaults_file,
-          owner  => 'root',
-          group  => 'root',
-          mode   => '0644',
-          before => Service[ "logstash-${name}" ],
-          notify => Service[ "logstash-${name}" ],
+        if $logstash::defaultsfiles {
+          $def = $logstash::defaultsfiles
+          $def_file = $def[$name]
+        }
+
+        $configdir = "${logstash::configdir}/${name}/config"
+
+        # Do we get a custom init script?
+        if $initfile != undef {
+
+          # Set initscript to undef
+          $initscript = undef
+        }
+
+        # If we are using a custom provider, thus not using the package and not supplying a custom init script use our own init script
+        if $initfile == undef {
+
+          $instance_name = $name
+          ## Get the init file we provide
+          case $::operatingsystem {
+            'RedHat', 'CentOS', 'Fedora', 'Scientific', 'Amazon': {
+              $initscript = template("${module_name}/etc/init.d/logstash.init.RedHat.erb")
+            }
+            'Debian', 'Ubuntu': {
+              $initscript = template("${module_name}/etc/init.d/logstash.init.Debian.erb")
+            }
+            default: {
+              fail("\"${module_name}\" provides no default init file
+                    for \"${::operatingsystem}\"")
+            }
+
+          }
+        }
+
+        # If no custom defaults file is provided, lets use our default one
+        if $def_file {
+          $defaults_file = $def_file
+        } else {
+          $defaults_file = "puppet:///modules/${module_name}/etc/sysconfig/logstash.defaults"
+        }
+
+        # Write service file
+        file { "/etc/init.d/logstash-${name}":
+          ensure  => $logstash::ensure,
+          content => $initscript,
+          source  => $initfile,
+          owner   => 'root',
+          group   => 'root',
+          mode    => '0755',
+          before  => Service[ "logstash-${name}" ]
+        }
+
+        if $defaults_file {
+          # Write defaults file if we have one
+          file { "${logstash::params::defaults_location}/logstash-${name}":
+            ensure => $logstash::ensure,
+            source => $defaults_file,
+            owner  => 'root',
+            group  => 'root',
+            mode   => '0644',
+            before => Service[ "logstash-${name}" ],
+            notify => Service[ "logstash-${name}" ],
+          }
         }
       }
     }

@@ -79,6 +79,7 @@ class logstash(
   $ensure         = $logstash::params::ensure,
   $autoupgrade    = $logstash::params::autoupgrade,
   $status         = $logstash::params::status,
+  $use_upstart    = false,
   $version        = false,
   $provider       = 'package',
   $jarfile        = undef,
